@@ -1,0 +1,11 @@
+# Secretos locales
+config/*.local.env
+
+# Resultados de compilación y archivos del editor (.NET)
+bin/
+obj/
+.vs/
+*.user
+
+# Fotos subidas por la API
+uploads/

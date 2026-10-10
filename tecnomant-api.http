@@ -1,0 +1,193 @@
+@baseUrl = http://localhost:5080
+
+# Pruebas manuales de la API de TecnoMant.
+# Hay una llamada de ejemplo por cada uno de los 11 endpoints (numeradas del 1 al 11)
+# y algunos casos de error o variantes (con letra: 1b, 3c...). Cada título dice el código esperado.
+#
+# Antes de usarlo:
+#   - Carga las variables de entorno y levanta la API (ver README.md).
+#   - El login de administrador (1a) lee Admin__Usuario y Admin__Clave del entorno:
+#     abre el editor desde la misma consola donde ejecutaste scripts/cargar-env.ps1.
+#
+# Los datos son los de 02_seed.sql, con la base recién cargada. Las llamadas 3, 9, 10 y 11
+# cambian datos; el README explica cómo volver al estado inicial.
+
+# Id de la inspección que crea la llamada 3. Con la base recién cargada es 1;
+# si no, cámbialo por el idInspeccion que devuelva esa llamada.
+@idInspeccion = 1
+
+# Id del cliente que crea la llamada 9. Con la base recién cargada es 4;
+# si no, cámbialo por el idCliente que devuelva esa llamada.
+@idClienteNuevo = 4
+
+# Foto de ejemplo: un JPEG real de 8x8 píxeles (633 bytes) en Base64, sin el prefijo "data:".
+@fotoBase64 = /9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDEooor9dPyQ//Z
+
+
+### 1. POST /api/login - técnico (200: rol "tecnico", idTecnico 1)
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{ "usuario": "tec01", "clave": "1234" }
+
+### 1a. POST /api/login - administrador (200: rol "admin", idTecnico null)
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{ "usuario": "{{$processEnv Admin__Usuario}}", "clave": "{{$processEnv Admin__Clave}}" }
+
+### 1b. POST /api/login - clave incorrecta (401: "Usuario o clave incorrectos")
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{ "usuario": "tec01", "clave": "0000" }
+
+### 1c. POST /api/login - sin usuario ni clave (400)
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{}
+
+### 1d. POST /api/login - JSON mal formado (400)
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{ "usuario": "tec01", "clave":
+
+
+### 2. GET /api/ordenes/tecnico/{idTecnico} (200: 3 órdenes, 2 Pendiente y 1 En proceso)
+GET {{baseUrl}}/api/ordenes/tecnico/1
+
+### 2a. GET /api/ordenes/tecnico/{idTecnico} - técnico que no existe (404)
+GET {{baseUrl}}/api/ordenes/tecnico/999
+
+
+### 3. POST /api/inspecciones - orden 3 (201: estadoGeneral "Malo", evidencias 1)
+POST {{baseUrl}}/api/inspecciones
+Content-Type: application/json
+
+{
+  "idOrden": 3,
+  "fechaHoraReal": "2026-10-09T14:30:00",
+  "observaciones": "Equipo con ruido en puertas",
+  "items": [
+    { "nombreItem": "Funcionamiento", "resultado": "Bien", "observacion": null },
+    { "nombreItem": "Ruidos", "resultado": "Malo", "observacion": "Ruido fuerte en puertas" }
+  ],
+  "evidencias": [
+    { "nombreArchivo": "foto1.jpg", "fotoBase64": "{{fotoBase64}}" }
+  ]
+}
+
+### 3a. POST /api/inspecciones - la misma orden otra vez (409: "La orden ya tiene una inspección")
+POST {{baseUrl}}/api/inspecciones
+Content-Type: application/json
+
+{
+  "idOrden": 3,
+  "fechaHoraReal": "2026-10-09T14:30:00",
+  "observaciones": "Equipo con ruido en puertas",
+  "items": [
+    { "nombreItem": "Funcionamiento", "resultado": "Bien", "observacion": null },
+    { "nombreItem": "Ruidos", "resultado": "Malo", "observacion": "Ruido fuerte en puertas" }
+  ],
+  "evidencias": [
+    { "nombreArchivo": "foto1.jpg", "fotoBase64": "{{fotoBase64}}" }
+  ]
+}
+
+### 3b. POST /api/inspecciones - ítem Malo sin observación (400)
+POST {{baseUrl}}/api/inspecciones
+Content-Type: application/json
+
+{
+  "idOrden": 1,
+  "fechaHoraReal": "2026-10-09T15:00:00",
+  "items": [
+    { "nombreItem": "Ruidos", "resultado": "Malo", "observacion": null }
+  ],
+  "evidencias": [
+    { "nombreArchivo": "foto1.jpg", "fotoBase64": "{{fotoBase64}}" }
+  ]
+}
+
+### 3c. POST /api/inspecciones - orden que no existe (404)
+POST {{baseUrl}}/api/inspecciones
+Content-Type: application/json
+
+{
+  "idOrden": 999,
+  "fechaHoraReal": "2026-10-09T15:00:00",
+  "items": [
+    { "nombreItem": "Funcionamiento", "resultado": "Bien", "observacion": null }
+  ],
+  "evidencias": []
+}
+
+
+### 4. GET /api/inspecciones (200: la más reciente primero)
+GET {{baseUrl}}/api/inspecciones
+
+### 4a. GET /api/inspecciones?idEquipo= - historial del equipo 5 (200)
+GET {{baseUrl}}/api/inspecciones?idEquipo=5
+
+### 4b. GET /api/inspecciones?idEquipo= - valor no numérico (400)
+GET {{baseUrl}}/api/inspecciones?idEquipo=abc
+
+
+### 5. GET /api/inspecciones/{id} (200: con sus 2 ítems y su evidencia)
+GET {{baseUrl}}/api/inspecciones/{{idInspeccion}}
+
+### 5a. La foto de esa inspección, por la url de su evidencia (200: image/jpeg)
+GET {{baseUrl}}/uploads/inspecciones/{{idInspeccion}}/1.jpg
+
+### 5b. GET /api/inspecciones/{id} - inspección que no existe (404)
+GET {{baseUrl}}/api/inspecciones/999
+
+
+### 6. GET /api/ordenes/resumen (200: 4, 1, 0 con la base recién cargada; 4, 0, 1 después de la llamada 3)
+GET {{baseUrl}}/api/ordenes/resumen
+
+
+### 7. GET /api/clientes (200: 3 clientes con la base recién cargada)
+GET {{baseUrl}}/api/clientes
+
+### 8. GET /api/clientes/{id} (200)
+GET {{baseUrl}}/api/clientes/1
+
+### 9. POST /api/clientes (201: el cliente con su idCliente)
+POST {{baseUrl}}/api/clientes
+Content-Type: application/json
+
+{ "razonSocial": "Clínica San Borja SAC", "direccion": "Av. Guardia Civil 337, San Borja", "contacto": "999000444" }
+
+### 9a. POST /api/clientes - sin razonSocial (400)
+POST {{baseUrl}}/api/clientes
+Content-Type: application/json
+
+{ "direccion": "Av. Guardia Civil 337, San Borja" }
+
+### 10. PUT /api/clientes/{id} (200: el cliente actualizado)
+PUT {{baseUrl}}/api/clientes/{{idClienteNuevo}}
+Content-Type: application/json
+
+{ "razonSocial": "Clínica San Borja SAC", "direccion": "Av. Guardia Civil 337, piso 2, San Borja", "contacto": null }
+
+### 10a. PUT /api/clientes/{id} - cliente que no existe (404)
+PUT {{baseUrl}}/api/clientes/999
+Content-Type: application/json
+
+{ "razonSocial": "No existe", "direccion": "Sin dirección" }
+
+### 11. DELETE /api/clientes/{id} - el cliente creado en la llamada 9 (204)
+DELETE {{baseUrl}}/api/clientes/{{idClienteNuevo}}
+
+### 11a. GET /api/clientes/{id} - el cliente ya eliminado (404)
+GET {{baseUrl}}/api/clientes/{{idClienteNuevo}}
+
+### 11b. DELETE /api/clientes/{id} - cliente con equipos (409: "No se puede eliminar: tiene registros relacionados")
+DELETE {{baseUrl}}/api/clientes/1
+
+
+### Ruta que no existe (404 con cuerpo {"mensaje": ...})
+GET {{baseUrl}}/api/no-existe

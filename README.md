@@ -1,0 +1,106 @@
+# TecnoMant API
+
+Servicio web REST de TecnoMant para la app móvil de los técnicos y el portal web: login, órdenes del técnico, sincronización y consulta de inspecciones, resumen de órdenes y mantenimiento de clientes. Está hecho con .NET 8 y Dapper sobre SQL Server.
+
+## Requisitos previos
+
+- SDK de .NET 8 o posterior, con el runtime de ASP.NET Core 8.
+- SQL Server (cualquier edición, también Express o LocalDB).
+- PowerShell, para cargar las variables de entorno.
+- Git, para clonar el repositorio.
+
+## Dependencias
+
+Son paquetes NuGet y se descargan solos con `dotnet restore`:
+
+| Proyecto | Paquete | Para qué sirve |
+|---|---|---|
+| `TecnoMant.Api` | `Dapper` | Consultas a SQL Server. |
+| `TecnoMant.Api` | `Microsoft.Data.SqlClient` | Conexión a SQL Server. |
+| `TecnoMant.Api` | `Swashbuckle.AspNetCore` | Swagger en desarrollo. |
+| `TecnoMant.Api.Tests` | `xunit`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk` | Pruebas unitarias. |
+
+## Instalación
+
+1. Clona el repositorio y entra a la carpeta:
+
+   ```powershell
+   git clone https://github.com/oyanezc99/tecnomant-api.git
+   cd tecnomant-api
+   ```
+
+2. Descarga las dependencias:
+
+   ```powershell
+   dotnet restore
+   ```
+
+3. Crea la base de datos. Ejecuta en SQL Server, en este orden, `db/01_schema.sql` (crea `TecnoMantDB` y sus tablas) y `db/02_seed.sql` (datos de prueba). Puedes abrirlos en SQL Server Management Studio o usar `sqlcmd`:
+
+   ```powershell
+   sqlcmd -S localhost -E -C -i db\01_schema.sql
+   sqlcmd -S localhost -E -C -i db\02_seed.sql
+   ```
+
+   La API no crea ni cambia tablas.
+
+4. Configura las variables de entorno (sección siguiente).
+
+## Variables de entorno
+
+| Variable | Para qué sirve |
+|---|---|
+| `ConnectionStrings__TecnoMantDB` | Cadena de conexión a `TecnoMantDB`. Sin ella la API no arranca. |
+| `Admin__Usuario` | Usuario del administrador del portal. |
+| `Admin__Clave` | Clave del administrador del portal. |
+
+Sus valores no están en el repositorio. Copia el ejemplo y complétalo con tus datos:
+
+```powershell
+Copy-Item config\db.example.env config\db.local.env
+```
+
+`config/db.local.env` queda fuera de git y lleva una línea `NOMBRE=valor` por variable. Para cargarlas en la consola, desde la raíz del proyecto:
+
+```powershell
+. .\scripts\cargar-env.ps1
+```
+
+Las variables solo viven en esa consola: hay que cargarlas de nuevo en cada consola nueva.
+
+Si faltan `Admin__Usuario` o `Admin__Clave`, la API arranca, pero nadie puede entrar como administrador. Con un SQL Server local sin certificado de confianza, la cadena de conexión necesita `TrustServerCertificate=True`. Con autenticación de Windows, cambia `User Id=...;Password=...` por `Integrated Security=True`.
+
+## Ejecutar la API
+
+En la misma consola donde cargaste las variables:
+
+```powershell
+dotnet run --project TecnoMant.Api
+```
+
+- API: `http://localhost:5080`. Desde el emulador de Android, `http://10.0.2.2:5080`; desde un celular en la misma red, `http://<IP de esta máquina>:5080`.
+- Swagger, solo en desarrollo: `http://localhost:5080/swagger`.
+- Las fotos se guardan en `TecnoMant.Api/uploads/` (fuera de git) y se sirven en `/uploads/...`.
+
+La API escucha en todas las interfaces (`0.0.0.0:5080`). Para entrar desde otro equipo o un celular, el firewall de Windows debe permitir conexiones entrantes al puerto 5080.
+
+## Probar
+
+Pruebas unitarias de las reglas. No necesitan base de datos ni variables de entorno:
+
+```powershell
+dotnet test TecnoMant.Api.Tests/TecnoMant.Api.Tests.csproj
+```
+
+Endpoints: con la API levantada, abre `tecnomant-api.http` en Visual Studio o en VS Code (extensión REST Client) y envía las llamadas en orden. Hay una por cada uno de los 11 endpoints y varios casos de error; cada título dice el código esperado. Abre el editor desde la consola donde cargaste las variables, porque el login de administrador las lee del entorno.
+
+## Volver a los datos iniciales
+
+Las llamadas de `tecnomant-api.http` cambian datos: la orden 3 pasa a `Completada` y se crean y borran clientes. Para volver al estado inicial:
+
+1. Elimina la base `TecnoMantDB` y vuelve a ejecutar `db/01_schema.sql` y `db/02_seed.sql`.
+2. Borra la carpeta `TecnoMant.Api/uploads/inspecciones/`.
+
+## Seguridad
+
+Solo el login valida usuario y clave. Las demás rutas no piden token, la API escucha en todas las interfaces de red (`0.0.0.0`) y las claves de los técnicos están en texto simple en la base. Cualquier equipo de la misma red puede leer y modificar los datos y ver las fotos. Usa la API solo en una red de confianza.

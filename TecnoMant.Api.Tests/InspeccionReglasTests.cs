@@ -4,7 +4,7 @@ using Xunit;
 
 namespace TecnoMant.Api.Tests;
 
-/// <summary>Validaciones de la inspección (FR4.2) y cálculo del estado general (FR4.5).</summary>
+/// <summary>Validaciones de la inspección y cálculo del estado general.</summary>
 public class InspeccionReglasTests
 {
     // Unos pocos bytes cualesquiera: las reglas no comprueban que la foto sea un JPEG real.

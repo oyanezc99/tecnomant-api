@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using TecnoMant.Api.Modelos;
 using TecnoMant.Api.Reglas;
@@ -34,12 +34,16 @@ namespace TecnoMant.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<int>> Crear([FromBody] DatosTecnico datos)
         {
-            if (string.IsNullOrWhiteSpace(datos.Nombre) || string.IsNullOrWhiteSpace(datos.Especialidad))
+            if (string.IsNullOrWhiteSpace(datos.Nombre) || string.IsNullOrWhiteSpace(datos.Usuario) || datos.Dni.Length != 8 || !datos.Dni.All(char.IsDigit))
             {
                 return BadRequest(new { mensaje = "Nombre y especialidad son obligatorios" });
             }
 
-            var nuevoId = await _reglas.CrearAsync(datos);
+            if (string.IsNullOrWhiteSpace(datos.Clave)) return BadRequest(new { mensaje = "La clave es obligatoria al crear un técnico" });
+            if ((await _reglas.ObtenerTodosAsync()).Any(t => t.Usuario == datos.Usuario)) return Conflict(new { mensaje="El usuario ya existe" });
+            int nuevoId;
+            try { nuevoId = await _reglas.CrearAsync(datos); }
+            catch (SqlException e) when(e.Number is 2601 or 2627) { return Conflict(new { mensaje="El usuario ya existe" }); }
             return StatusCode(StatusCodes.Status201Created, nuevoId);
         }
 
@@ -51,7 +55,10 @@ namespace TecnoMant.Api.Controllers
                 return BadRequest(new { mensaje = "Nombre y especialidad son obligatorios" });
             }
 
-            var actualizado = await _reglas.ActualizarAsync(id, datos);
+            if ((await _reglas.ObtenerTodosAsync()).Any(t => t.IdTecnico != id && t.Usuario == datos.Usuario)) return Conflict(new { mensaje="El usuario ya existe" });
+            bool actualizado;
+            try { actualizado = await _reglas.ActualizarAsync(id, datos); }
+            catch (SqlException e) when(e.Number is 2601 or 2627) { return Conflict(new { mensaje="El usuario ya existe" }); }
             if (!actualizado) return NotFound(new { mensaje = "Técnico no encontrado" });
 
             return NoContent();
@@ -60,7 +67,9 @@ namespace TecnoMant.Api.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Eliminar(int id)
         {
-            var eliminado = await _reglas.EliminarAsync(id);
+            bool eliminado;
+            try { eliminado = await _reglas.EliminarAsync(id); }
+            catch (SqlException e) when(e.Number==547) { return Conflict(new { mensaje="El técnico tiene órdenes asociadas" }); }
             if (!eliminado) return NotFound(new { mensaje = "Técnico no encontrado" });
 
             return NoContent();

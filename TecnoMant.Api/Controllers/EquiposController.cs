@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using TecnoMant.Api.Modelos;
 using TecnoMant.Api.Reglas;
 
@@ -45,6 +46,7 @@ namespace TecnoMant.Api.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Actualizar(int id, [FromBody] DatosEquipo datos)
         {
+            if (string.IsNullOrWhiteSpace(datos.Tipo) || string.IsNullOrWhiteSpace(datos.CodigoSerie)) return BadRequest(new { mensaje="Tipo y código son obligatorios" });
             var actualizado = await _reglas.ActualizarAsync(id, datos);
             if (!actualizado) return NotFound();
             return NoContent();
@@ -53,7 +55,9 @@ namespace TecnoMant.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Eliminar(int id)
         {
-            var eliminado = await _reglas.EliminarAsync(id);
+            bool eliminado;
+            try { eliminado = await _reglas.EliminarAsync(id); }
+            catch (SqlException e) when(e.Number==547) { return Conflict(new { mensaje="El equipo tiene órdenes asociadas" }); }
             if (!eliminado) return NotFound();
             return NoContent();
         }

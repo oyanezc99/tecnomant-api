@@ -10,6 +10,7 @@ public class LoginPedido
 /// <summary>Respuesta de POST /api/login. Nunca incluye la clave.</summary>
 public class LoginRespuesta
 {
+    public string Token { get; set; } = "";
     /// <summary>"admin" o "tecnico".</summary>
     public string Rol { get; set; } = "";
 

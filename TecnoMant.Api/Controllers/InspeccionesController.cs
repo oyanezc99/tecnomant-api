@@ -41,6 +41,7 @@ public class InspeccionesController : ControllerBase
     private const string SqlListado = """
         SELECT i.IdInspeccion,
                i.IdOrden,
+               o.IdTecnico,
                i.FechaHoraReal,
                c.RazonSocial AS Cliente,
                e.Tipo        AS EquipoTipo,
@@ -59,6 +60,7 @@ public class InspeccionesController : ControllerBase
     private const string SqlDetalle = """
         SELECT i.IdInspeccion,
                i.IdOrden,
+               o.IdTecnico,
                i.FechaHoraReal,
                c.RazonSocial AS Cliente,
                e.Tipo        AS EquipoTipo,
@@ -124,12 +126,28 @@ public class InspeccionesController : ControllerBase
                 return NotFound(new { mensaje = "La orden no existe" });
             }
 
+            if(!User.IsInRole("admin")) {
+                var asignado = await _conexion.ExecuteScalarAsync<int>("SELECT IdTecnico FROM OrdenTrabajo WHERE IdOrden=@idOrden",new { idOrden },tx);
+                if(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value != asignado.ToString()) return StatusCode(403,new {mensaje="La orden pertenece a otro técnico"});
+            }
             var inspecciones = await _conexion.ExecuteScalarAsync<int>(SqlContarInspeccionesDeLaOrden, new { idOrden }, tx);
             if (inspecciones > 0)
             {
-                return Conflict(new { mensaje = "La orden ya tiene una inspección" });
+                var anterior = await _conexion.QuerySingleAsync<InspeccionDetalle>("SELECT IdInspeccion,FechaHoraReal,Observaciones,EstadoGeneral FROM Inspeccion WHERE IdOrden=@idOrden",new { idOrden },tx);
+                var anteriores = (await _conexion.QueryAsync<ItemDetalle>(SqlItems,new {id=anterior.IdInspeccion},tx)).ToList();
+                var evidencias = (await _conexion.QueryAsync<string>("SELECT RutaFoto FROM Evidencia WHERE IdInspeccion=@id ORDER BY IdEvidencia",new {id=anterior.IdInspeccion},tx)).ToList();
+                bool coincide=anterior.FechaHoraReal==pedido.FechaHoraReal && (anterior.Observaciones??"")==(pedido.Observaciones??"") && anteriores.Count==items.Count && evidencias.Count==fotos.Count;
+                for(int n=0;coincide && n<items.Count;n++) coincide=anteriores[n].NombreItem==items[n].NombreItem && anteriores[n].Resultado==items[n].Resultado && (anteriores[n].Observacion??"")==(items[n].Observacion??"");
+                for(int n=0;coincide && n<fotos.Count;n++) {
+                    var archivo=Path.Combine(_entorno.ContentRootPath,evidencias[n].TrimStart('/').Replace('/',Path.DirectorySeparatorChar));
+                    coincide=System.IO.File.Exists(archivo) && (await System.IO.File.ReadAllBytesAsync(archivo)).SequenceEqual(fotos[n]);
+                }
+                if(coincide) return Ok(new InspeccionCreada { IdInspeccion=anterior.IdInspeccion,EstadoGeneral=anterior.EstadoGeneral,Evidencias=fotos.Count });
+                return Conflict(new { mensaje = "La orden ya tiene una inspección diferente" });
             }
 
+            var tipoEquipo=await _conexion.QuerySingleAsync<string>("SELECT e.Tipo FROM Equipo e JOIN OrdenTrabajo o ON o.IdEquipo=e.IdEquipo WHERE o.IdOrden=@idOrden",new { idOrden },tx);
+            if(!ProtocoloInspeccion.Completo(tipoEquipo,items.Select(i=>i.NombreItem))) return BadRequest(new {mensaje="El checklist debe incluir todos los ítems del protocolo del equipo, sin duplicados"});
             var idInspeccion = await _conexion.QuerySingleAsync<int>(
                 SqlInsertarInspeccion,
                 new { idOrden, fechaHoraReal = pedido.FechaHoraReal!.Value, observaciones = pedido.Observaciones, estadoGeneral },

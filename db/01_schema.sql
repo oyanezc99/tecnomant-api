@@ -26,7 +26,7 @@ CREATE TABLE Tecnico (
     DNI          CHAR(8) NOT NULL,
     Especialidad NVARCHAR(60),
     Usuario      NVARCHAR(50) NOT NULL,
-    Clave        NVARCHAR(50) NOT NULL       -- simple para el avance; en la entrega final se puede cifrar
+    Clave        NVARCHAR(256) NOT NULL       -- hash PBKDF2; las claves antiguas se migran al iniciar sesión
 );
 
 CREATE TABLE OrdenTrabajo (

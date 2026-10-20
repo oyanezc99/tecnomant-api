@@ -1,6 +1,6 @@
 # TecnoMant API
 
-Servicio web REST de TecnoMant para la app móvil de los técnicos y el portal web: login, órdenes del técnico, sincronización y consulta de inspecciones, resumen de órdenes y mantenimiento de clientes. Está hecho con .NET 8 y Dapper sobre SQL Server.
+Servicio web REST de TecnoMant para la app móvil de los técnicos y el portal web: login, órdenes del técnico, sincronización y consulta de inspecciones, resumen de órdenes y mantenimientos de clientes, equipos, técnicos y órdenes. Está hecho con .NET 8 y Dapper sobre SQL Server.
 
 ## Requisitos previos
 
@@ -42,7 +42,7 @@ Son paquetes NuGet y se descargan solos con `dotnet restore`:
    sqlcmd -S localhost -E -C -i db\02_seed.sql
    ```
 
-   La API no crea ni cambia tablas.
+   Ejecuta también db/03_claves_seguras.sql antes de iniciar esta versión, tanto en una base nueva como existente. No borra datos; amplía el campo de claves para PBKDF2. Al arrancar, la API convierte las claves antiguas a hashes con sal.
 
 4. Configura las variables de entorno (sección siguiente).
 
@@ -101,6 +101,18 @@ Las llamadas de `tecnomant-api.http` cambian datos: la orden 3 pasa a `Completad
 1. Elimina la base `TecnoMantDB` y vuelve a ejecutar `db/01_schema.sql` y `db/02_seed.sql`.
 2. Borra la carpeta `TecnoMant.Api/uploads/inspecciones/`.
 
-## Seguridad
+## Seguridad y sesión local
 
-Solo el login valida usuario y clave. Las demás rutas no piden token, la API escucha en todas las interfaces de red (`0.0.0.0`) y las claves de los técnicos están en texto simple en la base. Cualquier equipo de la misma red puede leer y modificar los datos y ver las fotos. Usa la API solo en una red de confianza.
+POST /api/login devuelve rol, nombre, idTecnico y token. Las demás rutas /api requieren Authorization: Bearer TOKEN. El administrador mantiene los datos; un técnico solo descarga sus propias órdenes y envía inspecciones de sus órdenes asignadas. POST /api/logout revoca el token. Los tokens son aleatorios, caducan a las 12 horas y se conservan solo en memoria: un reinicio requiere autenticarse otra vez.
+
+Las claves de los técnicos usan PBKDF2 con sal individual y no aparecen en respuestas. Ejecutar db/03_claves_seguras.sql en bases existentes; el arranque migra los valores antiguos. La credencial de administrador sigue en variables de entorno.
+
+Las fotos en /uploads requieren una sesión de administrador mediante cookie HttpOnly. En desarrollo local se utiliza HTTP; un despliegue requiere HTTPS y una configuración de sesión adecuada para su infraestructura.
+
+## Órdenes e inspecciones
+
+GET /api/ordenes lista todos los estados y admite idEquipo e idTecnico. POST /api/ordenes asigna equipo, técnico y fecha. PUT y DELETE /api/ordenes/{id} permiten gestionar órdenes sin inspección. Una orden se completa al recibir la inspección; no se marca manualmente como completada.
+
+Una inspección debe contener los cinco ítems del protocolo de su tipo de equipo. Malo exige observación y fotografía. El envío se guarda en una transacción y los reintentos idénticos devuelven la inspección existente; un contenido diferente devuelve 409.
+
+Los ejemplos antiguos del archivo .http requieren añadir el token Bearer y completar el checklist de cinco ítems antes de enviarse. Ver scripts/pruebas-integracion-local.md para la verificación actual.

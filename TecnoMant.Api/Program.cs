@@ -20,6 +20,7 @@ if (string.IsNullOrWhiteSpace(cadena))
 
 // Una conexión por petición. El contenedor la cierra al terminar la petición.
 builder.Services.AddScoped(_ => new SqlConnection(cadena));
+builder.Services.AddSingleton<SesionTokens>();
 
 // Vocales acentuadas y eñes sin escapar, para que los mensajes se lean bien.
 var codificador = JavaScriptEncoder.Create(UnicodeRanges.BasicLatin, UnicodeRanges.Latin1Supplement);
@@ -51,7 +52,7 @@ builder.Services.ConfigureHttpJsonOptions(opciones =>
 
 // El portal Angular corre en http://localhost:4200.
 builder.Services.AddCors(opciones => opciones.AddDefaultPolicy(politica =>
-    politica.WithOrigins("http://localhost:4200").AllowAnyMethod().AllowAnyHeader()));
+    politica.WithOrigins("http://localhost:4200").AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -60,6 +61,7 @@ builder.Services.AddSwaggerGen();
 // Cubre el pedido válido más grande: 5 fotos de 2 MB, unos 14 MB en Base64.
 
 var app = builder.Build();
+await MigrarClavesAsync(cadena);
 
 app.UseCors();
 
@@ -107,12 +109,36 @@ if (app.Environment.IsDevelopment())
 // Las fotos se guardan en uploads/ (fuera de git) y se sirven como archivos estáticos en /uploads/...
 var carpetaUploads = Path.Combine(app.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(carpetaUploads);
+app.Use(async (contexto,siguiente) => {
+    if(contexto.Request.Path.StartsWithSegments("/uploads")) {
+        var usuario=contexto.RequestServices.GetRequiredService<SesionTokens>().Leer(contexto.Request.Cookies["tecnomant.fotos"]??"");
+        if(usuario is null || !usuario.IsInRole("admin")) {contexto.Response.StatusCode=401; return;}
+    }
+    await siguiente();
+});
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(carpetaUploads),
     RequestPath = "/uploads"
 });
 
+// Las rutas administrativas requieren sesión; la app solo consulta sus órdenes y envía inspecciones.
+app.Use(async (contexto, siguiente) => {
+    var ruta=contexto.Request.Path.Value ?? "";
+    if (!ruta.StartsWith("/api/",StringComparison.OrdinalIgnoreCase) || ruta.Equals("/api/login",StringComparison.OrdinalIgnoreCase)) { await siguiente(); return; }
+    var cabecera=contexto.Request.Headers.Authorization.ToString();
+    var token=cabecera.StartsWith("Bearer ",StringComparison.OrdinalIgnoreCase)?cabecera[7..]:"";
+    var usuario=contexto.RequestServices.GetRequiredService<SesionTokens>().Leer(token);
+    if(usuario is null) { contexto.Response.StatusCode=401; await contexto.Response.WriteAsJsonAsync(new {mensaje="Inicia sesión nuevamente"}); return; }
+    contexto.User=usuario;
+    if(ruta=="/api/logout") { contexto.RequestServices.GetRequiredService<SesionTokens>().Cerrar(token); contexto.Response.Cookies.Delete("tecnomant.fotos",new CookieOptions {Path="/uploads"}); contexto.Response.StatusCode=204; return; }
+    var id=usuario.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var permitido=usuario.IsInRole("admin") ||
+        (contexto.Request.Method=="GET" && ruta=="/api/ordenes/tecnico/"+id) ||
+        (contexto.Request.Method=="POST" && ruta=="/api/inspecciones");
+    if(!permitido) { contexto.Response.StatusCode=403; await contexto.Response.WriteAsJsonAsync(new {mensaje="No tienes permiso para esta operación"}); return; }
+    await siguiente();
+});
 app.MapControllers();
 
 app.Run();
@@ -140,4 +166,26 @@ static string MensajeDeFormato(ModelStateDictionary estado)
 
     // Valores de la ruta o de la consulta, por ejemplo ?idEquipo=abc.
     return claves.Count > 0 ? $"El valor de {claves[0]} no es válido" : "El pedido no es válido";
+}
+
+// Conversión local de datos antiguos: no se conservan contraseñas en texto al arrancar.
+static async Task MigrarClavesAsync(string cadena)
+{
+    await using var conexion=new SqlConnection(cadena);
+    await conexion.OpenAsync();
+    await using var tamano=new SqlCommand("SELECT COL_LENGTH('Tecnico','Clave')",conexion);
+    if(Convert.ToInt32(await tamano.ExecuteScalarAsync())<512)
+        throw new InvalidOperationException("Ejecuta db/03_claves_seguras.sql antes de arrancar la API");
+    var pendientes=new List<(int Id,string Clave)>();
+    await using(var consulta=new SqlCommand("SELECT IdTecnico,Clave FROM Tecnico",conexion))
+    await using(var lector=await consulta.ExecuteReaderAsync())
+        while(await lector.ReadAsync()) if(!lector.GetString(1).StartsWith("pbkdf2$")) pendientes.Add((lector.GetInt32(0),lector.GetString(1)));
+    foreach(var tecnico in pendientes)
+    {
+        await using var actualizar=new SqlCommand("UPDATE Tecnico SET Clave=@hash WHERE IdTecnico=@id AND Clave=@anterior",conexion);
+        actualizar.Parameters.AddWithValue("@hash",ClaveSegura.Crear(tecnico.Clave));
+        actualizar.Parameters.AddWithValue("@id",tecnico.Id);
+        actualizar.Parameters.AddWithValue("@anterior",tecnico.Clave);
+        await actualizar.ExecuteNonQueryAsync();
+    }
 }

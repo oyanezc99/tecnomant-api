@@ -47,6 +47,7 @@ public class InspeccionCreada
 /// <summary>Un elemento de GET /api/inspecciones.</summary>
 public class InspeccionResumen
 {
+    public int IdTecnico { get; set; }
     public int IdInspeccion { get; set; }
     public int IdOrden { get; set; }
     public DateTime FechaHoraReal { get; set; }

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace TecnoMant.Api.Tests;
 
-/// <summary>Campos obligatorios y tamaños de texto de un cliente.</summary>
+/// <summary>Campos obligatorios y tamaños de texto de un cliente (FR8.5).</summary>
 public class ClienteReglasTests
 {
     // Cliente válido base. Cada prueba lo cambia en un solo punto.

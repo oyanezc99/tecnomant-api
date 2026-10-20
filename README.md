@@ -1,6 +1,6 @@
 # TecnoMant API
 
-Servicio web REST de TecnoMant para la app móvil de los técnicos y el portal web: login, órdenes del técnico, sincronización y consulta de inspecciones, resumen de órdenes y mantenimientos de clientes, equipos, técnicos y órdenes de trabajo. Está hecho con .NET 8 y Dapper sobre SQL Server.
+Servicio web REST de TecnoMant para la app móvil de los técnicos y el portal web: login, órdenes del técnico, sincronización y consulta de inspecciones, resumen de órdenes y mantenimiento de clientes. Está hecho con .NET 8 y Dapper sobre SQL Server.
 
 ## Requisitos previos
 
@@ -84,58 +84,23 @@ dotnet run --project TecnoMant.Api
 
 La API escucha en todas las interfaces (`0.0.0.0:5080`). Para entrar desde otro equipo o un celular, el firewall de Windows debe permitir conexiones entrantes al puerto 5080.
 
-## Endpoints
-
-Los errores siempre responden `{"mensaje": "texto legible"}`.
-
-| Método | Ruta | Para qué |
-|---|---|---|
-| POST | `/api/login` | Login del técnico (app) o del administrador (portal) |
-| GET | `/api/ordenes/tecnico/{idTecnico}` | Órdenes `Pendiente` y `En proceso` del técnico, para la app |
-| POST | `/api/inspecciones` | La app envía una inspección completa, con checklist y fotos |
-| GET | `/api/inspecciones` | Listado de inspecciones, la más reciente primero (filtro opcional `?idEquipo=`) |
-| GET | `/api/inspecciones/{id}` | Detalle de una inspección, con sus ítems y fotos |
-| GET | `/api/ordenes/resumen` | Número de órdenes en cada estado, para el dashboard |
-| GET | `/api/clientes` | Listado de clientes |
-| GET | `/api/clientes/{id}` | Un cliente |
-| POST | `/api/clientes` | Crear un cliente |
-| PUT | `/api/clientes/{id}` | Editar un cliente |
-| DELETE | `/api/clientes/{id}` | Eliminar un cliente (409 si tiene equipos) |
-| GET | `/api/equipos` | Listado de equipos, con la razón social de su cliente |
-| GET | `/api/equipos/{id}` | Un equipo |
-| POST | `/api/equipos` | Crear un equipo |
-| PUT | `/api/equipos/{id}` | Editar un equipo |
-| DELETE | `/api/equipos/{id}` | Eliminar un equipo (409 si tiene órdenes) |
-| GET | `/api/tecnicos` | Listado de técnicos, sin la clave |
-| GET | `/api/tecnicos/{id}` | Un técnico, sin la clave |
-| POST | `/api/tecnicos` | Crear un técnico (409 si el usuario ya existe) |
-| PUT | `/api/tecnicos/{id}` | Editar un técnico; con `clave` vacía, la clave no cambia |
-| DELETE | `/api/tecnicos/{id}` | Eliminar un técnico (409 si tiene órdenes) |
-| GET | `/api/ordenes` | Listado de órdenes, con cliente, equipo y técnico |
-| GET | `/api/ordenes/{id}` | Una orden |
-| POST | `/api/ordenes` | Crear una orden; sin `estado`, se crea en `Pendiente` |
-| PUT | `/api/ordenes/{id}` | Editar una orden; sin `estado`, conserva el que tenía |
-| DELETE | `/api/ordenes/{id}` | Eliminar una orden (409 si ya tiene inspección) |
-
-Ninguna respuesta incluye la clave de un técnico.
-
 ## Probar
 
-Pruebas unitarias de las reglas de validación. No necesitan base de datos ni variables de entorno:
+Pruebas unitarias de las reglas. No necesitan base de datos ni variables de entorno:
 
 ```powershell
 dotnet test TecnoMant.Api.Tests/TecnoMant.Api.Tests.csproj
 ```
 
-Endpoints: con la API levantada, abre `tecnomant-api.http` en Visual Studio o en VS Code (extensión REST Client) y envía las llamadas en orden. Hay una por cada uno de los 26 endpoints y varios casos de error; cada título dice el código esperado. Las llamadas que crean clientes, equipos, técnicos y órdenes usan variables (`@idClienteNuevo`, `@idEquipoNuevo`, `@idTecnicoNuevo`, `@idOrdenNueva`) con el id que tendrán con la base recién cargada; si la base ya se usó, cámbialas por el id que devuelva cada alta. Abre el editor desde la consola donde cargaste las variables, porque el login de administrador las lee del entorno.
+Endpoints: con la API levantada, abre `tecnomant-api.http` en Visual Studio o en VS Code (extensión REST Client) y envía las llamadas en orden. Hay una por cada uno de los 11 endpoints y varios casos de error; cada título dice el código esperado. Abre el editor desde la consola donde cargaste las variables, porque el login de administrador las lee del entorno.
 
 ## Volver a los datos iniciales
 
-Las llamadas de `tecnomant-api.http` que crean clientes, equipos, técnicos y órdenes borran esos mismos registros al final de su grupo. Lo único que queda cambiado es la orden 3: pasa a `Completada` y queda con la inspección de la llamada 3. Además, la base ya no da los mismos ids a los registros nuevos. Para volver al estado inicial:
+Las llamadas de `tecnomant-api.http` cambian datos: la orden 3 pasa a `Completada` y se crean y borran clientes. Para volver al estado inicial:
 
 1. Elimina la base `TecnoMantDB` y vuelve a ejecutar `db/01_schema.sql` y `db/02_seed.sql`.
 2. Borra la carpeta `TecnoMant.Api/uploads/inspecciones/`.
 
 ## Seguridad
 
-Solo el login valida usuario y clave. Las demás rutas no piden token, la API escucha en todas las interfaces de red (`0.0.0.0`) y las claves de los técnicos están en texto simple en la base. Cualquier equipo de la misma red puede leer y modificar los datos (también crear y eliminar clientes, equipos, técnicos y órdenes) y ver las fotos. Usa la API solo en una red de confianza.
+Solo el login valida usuario y clave. Las demás rutas no piden token, la API escucha en todas las interfaces de red (`0.0.0.0`) y las claves de los técnicos están en texto simple en la base. Cualquier equipo de la misma red puede leer y modificar los datos y ver las fotos. Usa la API solo en una red de confianza.

@@ -1,7 +1,7 @@
 @baseUrl = http://localhost:5080
 
 # Pruebas manuales de la API de TecnoMant.
-# Hay una llamada de ejemplo por cada uno de los 26 endpoints (numerados del 1 al 26)
+# Hay una llamada de ejemplo por cada uno de los 11 endpoints (numeradas del 1 al 11)
 # y algunos casos de error o variantes (con letra: 1b, 3c...). Cada título dice el código esperado.
 #
 # Antes de usarlo:
@@ -9,11 +9,8 @@
 #   - El login de administrador (1a) lee Admin__Usuario y Admin__Clave del entorno:
 #     abre el editor desde la misma consola donde ejecutaste scripts/cargar-env.ps1.
 #
-# Los datos son los de 02_seed.sql, con la base recién cargada. Envía las llamadas en orden.
-# Las de clientes (9 a 11), equipos (14 a 16), técnicos (19 a 21) y órdenes (24 a 26) crean
-# su propio registro y lo borran al final de su grupo, sin tocar los datos de 02_seed.sql.
-# Solo la llamada 3 deja cambios: la orden 3 pasa a Completada y queda con su inspección.
-# El README explica cómo volver al estado inicial.
+# Los datos son los de 02_seed.sql, con la base recién cargada. Las llamadas 3, 9, 10 y 11
+# cambian datos; el README explica cómo volver al estado inicial.
 
 # Id de la inspección que crea la llamada 3. Con la base recién cargada es 1;
 # si no, cámbialo por el idInspeccion que devuelva esa llamada.
@@ -22,18 +19,6 @@
 # Id del cliente que crea la llamada 9. Con la base recién cargada es 4;
 # si no, cámbialo por el idCliente que devuelva esa llamada.
 @idClienteNuevo = 4
-
-# Id del equipo que crea la llamada 14. Con la base recién cargada es 6;
-# si no, cámbialo por el idEquipo que devuelva esa llamada.
-@idEquipoNuevo = 6
-
-# Id del técnico que crea la llamada 19. Con la base recién cargada es 3;
-# si no, cámbialo por el idTecnico que devuelva esa llamada.
-@idTecnicoNuevo = 3
-
-# Id de la orden que crea la llamada 24. Con la base recién cargada es 6;
-# si no, cámbialo por el idOrden que devuelva esa llamada.
-@idOrdenNueva = 6
 
 # Foto de ejemplo: un JPEG real de 8x8 píxeles (633 bytes) en Base64, sin el prefijo "data:".
 @fotoBase64 = /9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDEooor9dPyQ//Z
@@ -139,10 +124,6 @@ Content-Type: application/json
   "evidencias": []
 }
 
-### 3d. DELETE /api/ordenes/{id} - la orden 3, que ya tiene la inspección de la llamada 3 (409: "No se puede eliminar: tiene registros relacionados")
-# Va aquí, justo después de la llamada 3, porque solo da 409 si la inspección existe.
-DELETE {{baseUrl}}/api/ordenes/3
-
 
 ### 4. GET /api/inspecciones (200: la más reciente primero)
 GET {{baseUrl}}/api/inspecciones
@@ -206,206 +187,6 @@ GET {{baseUrl}}/api/clientes/{{idClienteNuevo}}
 
 ### 11b. DELETE /api/clientes/{id} - cliente con equipos (409: "No se puede eliminar: tiene registros relacionados")
 DELETE {{baseUrl}}/api/clientes/1
-
-
-### 12. GET /api/equipos (200: 5 equipos; el equipo 1 trae cliente "Edificio Residencial Los Álamos")
-GET {{baseUrl}}/api/equipos
-
-### 13. GET /api/equipos/{id} (200)
-GET {{baseUrl}}/api/equipos/1
-
-### 13a. GET /api/equipos/{id} - equipo que no existe (404)
-GET {{baseUrl}}/api/equipos/999
-
-### 14. POST /api/equipos (201: el equipo con su idEquipo y cliente "Condominio Vista Mar")
-POST {{baseUrl}}/api/equipos
-Content-Type: application/json
-
-{ "idCliente": 3, "tipo": "Aire acondicionado", "codigoSerie": "AC-005", "ubicacion": "Azotea" }
-
-### 14a. POST /api/equipos - cliente que no existe (400: "idCliente no corresponde a un cliente existente")
-POST {{baseUrl}}/api/equipos
-Content-Type: application/json
-
-{ "idCliente": 999, "tipo": "Ascensor", "codigoSerie": "ASC-999" }
-
-### 14b. POST /api/equipos - tipo no permitido (400)
-POST {{baseUrl}}/api/equipos
-Content-Type: application/json
-
-{ "idCliente": 3, "tipo": "Montacargas", "codigoSerie": "MON-001" }
-
-### 15. PUT /api/equipos/{id} (200: el equipo actualizado)
-PUT {{baseUrl}}/api/equipos/{{idEquipoNuevo}}
-Content-Type: application/json
-
-{ "idCliente": 3, "tipo": "Aire acondicionado", "codigoSerie": "AC-005", "ubicacion": "Azotea, lado norte" }
-
-### 15a. PUT /api/equipos/{id} - equipo que no existe (404)
-PUT {{baseUrl}}/api/equipos/999
-Content-Type: application/json
-
-{ "idCliente": 3, "tipo": "Ascensor", "codigoSerie": "ASC-999" }
-
-### 16. DELETE /api/equipos/{id} - el equipo creado en la llamada 14 (204)
-DELETE {{baseUrl}}/api/equipos/{{idEquipoNuevo}}
-
-### 16a. GET /api/equipos/{id} - el equipo ya eliminado (404)
-GET {{baseUrl}}/api/equipos/{{idEquipoNuevo}}
-
-### 16b. DELETE /api/equipos/{id} - equipo con órdenes (409: "No se puede eliminar: tiene registros relacionados")
-DELETE {{baseUrl}}/api/equipos/1
-
-
-### 17. GET /api/tecnicos (200: 2 técnicos, ninguno con "clave")
-GET {{baseUrl}}/api/tecnicos
-
-### 18. GET /api/tecnicos/{id} (200, sin "clave")
-GET {{baseUrl}}/api/tecnicos/1
-
-### 18a. GET /api/tecnicos/{id} - técnico que no existe (404)
-GET {{baseUrl}}/api/tecnicos/999
-
-### 19. POST /api/tecnicos (201: el técnico con su idTecnico, sin "clave")
-POST {{baseUrl}}/api/tecnicos
-Content-Type: application/json
-
-{ "nombre": "Tecnico Prueba 3", "dni": "10000003", "especialidad": "Activos industriales", "usuario": "tec03", "clave": "5678" }
-
-### 19a. POST /api/login - el técnico creado en la llamada 19 (200: rol "tecnico")
-POST {{baseUrl}}/api/login
-Content-Type: application/json
-
-{ "usuario": "tec03", "clave": "5678" }
-
-### 19b. POST /api/tecnicos - usuario repetido en otras mayúsculas (409: "El usuario ya existe")
-POST {{baseUrl}}/api/tecnicos
-Content-Type: application/json
-
-{ "nombre": "Otro Tecnico", "dni": "10000004", "usuario": "TEC01", "clave": "5678" }
-
-### 19c. POST /api/tecnicos - dni que no son 8 dígitos (400: "dni debe tener exactamente 8 dígitos")
-POST {{baseUrl}}/api/tecnicos
-Content-Type: application/json
-
-{ "nombre": "Otro Tecnico", "dni": "1234567A", "usuario": "tec04", "clave": "5678" }
-
-### 20. PUT /api/tecnicos/{id} - con clave vacía y su mismo usuario (200: la clave no cambia)
-PUT {{baseUrl}}/api/tecnicos/{{idTecnicoNuevo}}
-Content-Type: application/json
-
-{ "nombre": "Tecnico Prueba 3", "dni": "10000003", "especialidad": "Ascensores", "usuario": "tec03", "clave": "" }
-
-### 20a. POST /api/login - con la clave de siempre (200: la llamada 20 no la cambió)
-POST {{baseUrl}}/api/login
-Content-Type: application/json
-
-{ "usuario": "tec03", "clave": "5678" }
-
-### 20b. PUT /api/tecnicos/{id} - con clave nueva (200)
-PUT {{baseUrl}}/api/tecnicos/{{idTecnicoNuevo}}
-Content-Type: application/json
-
-{ "nombre": "Tecnico Prueba 3", "dni": "10000003", "especialidad": "Ascensores", "usuario": "tec03", "clave": "9012" }
-
-### 20c. POST /api/login - con la clave anterior (401: "Usuario o clave incorrectos")
-POST {{baseUrl}}/api/login
-Content-Type: application/json
-
-{ "usuario": "tec03", "clave": "5678" }
-
-### 20d. POST /api/login - con la clave nueva (200)
-POST {{baseUrl}}/api/login
-Content-Type: application/json
-
-{ "usuario": "tec03", "clave": "9012" }
-
-### 20e. PUT /api/tecnicos/{id} - técnico que no existe (404)
-PUT {{baseUrl}}/api/tecnicos/999
-Content-Type: application/json
-
-{ "nombre": "No existe", "dni": "10000099", "usuario": "tec99" }
-
-### 20f. PUT /api/tecnicos/{id} - con el usuario de otro técnico (409: "El usuario ya existe")
-PUT {{baseUrl}}/api/tecnicos/{{idTecnicoNuevo}}
-Content-Type: application/json
-
-{ "nombre": "Tecnico Prueba 3", "dni": "10000003", "especialidad": "Ascensores", "usuario": "tec01", "clave": "" }
-
-### 21. DELETE /api/tecnicos/{id} - el técnico creado en la llamada 19 (204)
-DELETE {{baseUrl}}/api/tecnicos/{{idTecnicoNuevo}}
-
-### 21a. GET /api/tecnicos/{id} - el técnico ya eliminado (404)
-GET {{baseUrl}}/api/tecnicos/{{idTecnicoNuevo}}
-
-### 21b. DELETE /api/tecnicos/{id} - técnico con órdenes (409: "No se puede eliminar: tiene registros relacionados")
-DELETE {{baseUrl}}/api/tecnicos/1
-
-
-### 22. GET /api/ordenes (200: 5 órdenes; la orden 1 trae equipoCodigo "ASC-001" y tecnico "Tecnico Prueba 1")
-GET {{baseUrl}}/api/ordenes
-
-### 23. GET /api/ordenes/{id} (200)
-GET {{baseUrl}}/api/ordenes/1
-
-### 23a. GET /api/ordenes/{id} - orden que no existe (404)
-GET {{baseUrl}}/api/ordenes/999
-
-### 24. POST /api/ordenes - sin estado (201: estado "Pendiente"; el resumen de la llamada 6 cuenta una pendiente más)
-POST {{baseUrl}}/api/ordenes
-Content-Type: application/json
-
-{ "idEquipo": 2, "idTecnico": 2, "fechaProgramada": "2026-10-25T10:00:00" }
-
-### 24a. POST /api/ordenes - equipo que no existe (400: "idEquipo no corresponde a un equipo existente")
-POST {{baseUrl}}/api/ordenes
-Content-Type: application/json
-
-{ "idEquipo": 999, "idTecnico": 2, "fechaProgramada": "2026-10-25T10:00:00" }
-
-### 24b. POST /api/ordenes - técnico que no existe (400: "idTecnico no corresponde a un técnico existente")
-POST {{baseUrl}}/api/ordenes
-Content-Type: application/json
-
-{ "idEquipo": 2, "idTecnico": 999, "fechaProgramada": "2026-10-25T10:00:00" }
-
-### 24c. POST /api/ordenes - estado no permitido (400)
-POST {{baseUrl}}/api/ordenes
-Content-Type: application/json
-
-{ "idEquipo": 2, "idTecnico": 2, "fechaProgramada": "2026-10-25T10:00:00", "estado": "Cancelada" }
-
-### 24d. POST /api/ordenes - fecha fuera del rango de DATETIME (400)
-POST {{baseUrl}}/api/ordenes
-Content-Type: application/json
-
-{ "idEquipo": 2, "idTecnico": 2, "fechaProgramada": "1700-01-01T00:00:00" }
-
-### 25. PUT /api/ordenes/{id} - pasa a En proceso (200: la orden actualizada)
-PUT {{baseUrl}}/api/ordenes/{{idOrdenNueva}}
-Content-Type: application/json
-
-{ "idEquipo": 2, "idTecnico": 2, "fechaProgramada": "2026-10-25T10:00:00", "estado": "En proceso" }
-
-### 25a. PUT /api/ordenes/{id} - sin estado y con otra fecha (200: sigue "En proceso")
-PUT {{baseUrl}}/api/ordenes/{{idOrdenNueva}}
-Content-Type: application/json
-
-{ "idEquipo": 2, "idTecnico": 2, "fechaProgramada": "2026-10-26T08:30:00" }
-
-### 25b. PUT /api/ordenes/{id} - orden que no existe (404)
-PUT {{baseUrl}}/api/ordenes/999
-Content-Type: application/json
-
-{ "idEquipo": 2, "idTecnico": 2, "fechaProgramada": "2026-10-25T10:00:00" }
-
-### 26. DELETE /api/ordenes/{id} - la orden creada en la llamada 24 (204)
-DELETE {{baseUrl}}/api/ordenes/{{idOrdenNueva}}
-
-### 26a. GET /api/ordenes/{id} - la orden ya eliminada (404)
-GET {{baseUrl}}/api/ordenes/{{idOrdenNueva}}
-
-# El borrado de una orden con inspección (409) está en la llamada 3d.
 
 
 ### Ruta que no existe (404 con cuerpo {"mensaje": ...})

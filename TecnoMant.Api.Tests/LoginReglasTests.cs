@@ -4,7 +4,7 @@ using Xunit;
 
 namespace TecnoMant.Api.Tests;
 
-/// <summary>Usuario y clave obligatorios y comparación con el administrador.</summary>
+/// <summary>Usuario y clave obligatorios (FR2.1) y comparación con el administrador (FR2.2).</summary>
 public class LoginReglasTests
 {
     // Credenciales inventadas para estas pruebas; no son las de ningún entorno.

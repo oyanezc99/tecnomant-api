@@ -3,7 +3,7 @@ using Xunit;
 
 namespace TecnoMant.Api.Tests;
 
-/// <summary>Fechas ISO 8601 sin zona ni fracción de segundo.</summary>
+/// <summary>Fechas ISO 8601 sin zona ni fracción de segundo (FR1.4).</summary>
 public class FechaJsonConverterTests
 {
     private static readonly JsonSerializerOptions Opciones = new()
